@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pong Game with Gameplay Modes</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://unpkg.com/@radial-color-picker/vue-color-picker@latest/dist/vue-color-picker.umd.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/@radial-color-picker/vue-color-picker@latest/dist/vue-color-picker.min.css">
+  <style>
+    :root {
+      --radius: 12px;
+      --duration: 0.3s;
+      --dropdown-width: 200px;
+      --accent: #3ad29f;
+      --background: #342e37;
+      --paddle-ball: #fff;
+      --text: #fff;
+      --score: #fff;
+      --winner: #3ad29f;
+      --button-bg: #3ad29f;
+      --button-text: #fff;
+      --dropdown-bg: #fff;
+      --dropdown-text: #444;
+      --canvas-bg: #222;
+      --shadow: rgba(0,0,0,0.10);
+    }
+    body.light {
+      --background: #f5f6fa;
+      --paddle-ball: #222;
+      --text: #222;
+      --score: #222;
+      --winner: var(--accent);
+      --button-bg: var(--accent);
+      --button-text: #fff;
+      --dropdown-bg: #fff;
+      --dropdown-text: #222;
+      --canvas-bg: #fff;
+      --shadow: rgba(0,0,0,0.08);
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+      justify-content: center;
+      background: var(--background);
+      gap: 12px;
+      font-family: Roboto, Arial, sans-serif;
+      transition: background 0.2s;
+    }
+    #app {
+      font-family: "Roboto", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: var(--text);
+      width: 100%;
+    }
+    #themeBar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    #themeBar label {
+      color: var(--text);
+      font-weight: bold;
+      font-size: 1em;
+    }
+    .color-picker-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .rcp {
+      width: 80px !important;
+      height: 80px !important;
+    }
+    .rcp__well {
+      width: 60px !important;
+      height: 60px !important;
+    }
+    #modeToggle {
+      font-size: 1em;
+      border-radius: var(--radius);
+      background: var(--button-bg);
+      color: var(--button-text);
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 2px 8px var(--shadow);
+      transition: background 0.2s;
+      padding: 8px 18px;
+    }
+    #modeToggle:hover {
+      background: #25b67a;
+    }
+    #controls {
+      text-align: center;
+      margin: 12px auto;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .dropdown {
+      width: var(--dropdown-width);
+      position: relative;
+      user-select: none;
+      margin: 0 4px;
+      z-index: 10000;
+    }
+    .dropdown label {
+      color: var(--text);
+      margin-bottom: 3px;
+      font-size: 1em;
+      font-weight: bold;
+      display: block;
+      text-align: left;
+    }
+    .open {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: var(--radius);
+      cursor: pointer;
+      height: 30px;
+      width: 80%;
+      margin: 0;
+      font-weight: bold;
+      font-family: Roboto, Arial, sans-serif;
+      background: var(--dropdown-bg);
+      color: var(--dropdown-text);
+      position: relative;
+      padding-left: 12px;
+      padding-right: 36px;
+      font-size: 16px;
+      box-shadow: 0 2px 8px var(--shadow);
+      transition: background var(--duration), color var(--duration);
+    }
+    .open:after {
+      content: 'arrow_drop_down';
+      font-family: 'Material Icons Round';
+      font-size: 16px;
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      transition: var(--duration) all;
+      pointer-events: none;
+      z-index: 10000;
+    }
+    .open.active:after {
+      transform: rotate(180deg) scaleX(-1);
+    }
+    .items {
+      border-radius: var(--radius);
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background: var(--dropdown-bg);
+      box-shadow: 0 8px 32px var(--shadow);
+      z-index: 9999;
+      transition: opacity var(--duration), transform var(--duration);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px) scaleY(0.95);
+      overflow: hidden;
+    }
+    .items.show {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scaleY(1);
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      height: 44px;
+      width: 100%;
+      margin: 0;
+      font-weight: bold;
+      font-family: Roboto, Arial, sans-serif;
+      background: var(--dropdown-bg);
+      color: var(--dropdown-text);
+      font-size: 16px;
+      padding-left: 12px;
+      padding-right: 36px;
+      border-bottom: 1px solid #eee;
+      transition: background var(--duration), color var(--duration);
+    }
+    .item:last-child {
+      border-bottom: none;
+    }
+    .item:hover, .item:focus {
+      background: #eee;
+    }
+    #timerInputGroup, #pointLimitInputGroup {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text);
+      font-size: 1em;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+    #timerInput, #pointLimitInput {
+      font-size: 1em;
+      border-radius: 6px;
+      border: none;
+      padding: 3px 7px;
+      background: var(--dropdown-bg);
+      color: var(--dropdown-text);
+      font-family: Roboto;
+      width: 60px;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    #startBtn {
+      font-size: 1em;
+      padding: 10px 24px;
+      margin-left: 10px;
+      border-radius: 12px;
+      background: var(--button-bg);
+      color: var(--button-text);
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 2px 8px var(--shadow);
+      transition: background 0.2s;
+    }
+    #startBtn:hover {
+      background: #25b67a;
+    }
+    #score, #timer {
+      color: var(--score);
+      text-align: center;
+      font-size: 2em;
+      font-family: Roboto, Arial, sans-serif;
+      margin-top: 10px;
+      letter-spacing: 2px;
+      font-weight: bold;
+      transition: color 0.2s;
+    }
+    #winner {
+      color: var(--winner);
+      font-size: 2em;
+      text-align: center;
+      font-family: Roboto, Arial, sans-serif;
+      margin-top: 10px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-shadow: 0 2px 8px var(--shadow);
+      transition: color 0.2s;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: var(--canvas-bg);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px var(--shadow);
+      transition: background 0.2s;
+    }
+    @media (max-width: 420px) {
+      #themeBar {
+        flex-direction: column;
+        gap: 10px;
+      }
+      .rcp {
+        width: 60px !important;
+        height: 60px !important;
+      }
+      .rcp__well {
+        width: 45px !important;
+        height: 45px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="themeBar">
+      <div class="color-picker-container">
+        <label>Theme Color:</label>
+        <color-picker v-bind="color" @input="onColorInput"></color-picker>
+      </div>
+      <button id="modeToggle" @click="toggleTheme">{{ isDark ? 'Light Mode' : 'Dark Mode' }}</button>
+    </div>
+    <div id="controls">
+      <div class="dropdown" id="difficultyDropdown">
+        <label>Difficulty:</label>
+        <div class="open" tabindex="0" id="difficultyOpen">Medium</div>
+        <div class="items" id="difficultyItems">
+          <div class="item" data-value="easy" tabindex="0">Easy</div>
+          <div class="item" data-value="medium" tabindex="0">Medium</div>
+          <div class="item" data-value="hard" tabindex="0">Hard</div>
+        </div>
+      </div>
+      <div class="dropdown" id="modeDropdown">
+        <label>Mode:</label>
+        <div class="open" tabindex="0" id="modeOpen">Infinite</div>
+        <div class="items" id="modeItems">
+          <div class="item" data-value="timer" tabindex="0">Timer</div>
+          <div class="item" data-value="infinite" tabindex="0">Infinite</div>
+          <div class="item" data-value="point_limit" tabindex="0">Point Limit</div>
+        </div>
+      </div>
+      <span id="timerInputGroup" style="display:none;">
+        <label for="timerInput">Duration (sec):</label>
+        <input type="number" id="timerInput" min="1" value="60">
+      </span>
+      <span id="pointLimitInputGroup" style="display:none;">
+        <label for="pointLimitInput">Point Limit:</label>
+        <input type="number" id="pointLimitInput" min="1" value="10">
+      </span>
+      <button id="startBtn" @click="startGame">Start Game</button>
+    </div>
+    <div id="timer" style="display:none;">Time: 60</div>
+    <div id="score">0 : 0</div>
+    <div id="winner"></div>
+    <canvas id="pong" width="800" height="600"></canvas>
+  </div>
+
+  <script>
+    const { createApp, reactive, ref, onMounted } = Vue;
+    const ColorPicker = VueColorPicker;
+
+    createApp({
+      components: {
+        ColorPicker: ColorPicker,
+      },
+      setup() {
+        const color = reactive({
+          hue: 164,
+          saturation: 71,
+          luminosity: 56,
+          alpha: 1,
+        });
+
+        const isDark = ref(true);
+
+        // Game variables
+        const canvas = ref(null);
+        const ctx = ref(null);
+        const scoreDiv = ref(null);
+        const timerInputGroup = ref(null);
+        const timerInput = ref(null);
+        const pointLimitInputGroup = ref(null);
+        const pointLimitInput = ref(null);
+        const winnerDiv = ref(null);
+        const timerDiv = ref(null);
+
+        const paddleWidth = 10, paddleHeight = 100;
+        let playerY = 300 - paddleHeight / 2;
+        let aiY = 300 - paddleHeight / 2;
+        const paddleSpeed = 7;
+        const ballSize = 20;
+        let ballX = 400 - ballSize / 2;
+        let ballY = 300 - ballSize / 2;
+        let ballSpeedX = Math.random() < 0.5 ? 6 : -6;
+        let ballSpeedY = (Math.random() * 4 + 3) * (Math.random() < 0.5 ? 1 : -1);
+
+        const AI_SETTINGS = {
+          easy:   { aiSpeed: 3, aiError: 30 },
+          medium: { aiSpeed: 7, aiError: 10 },
+          hard:   { aiSpeed: 12, aiError: 2 }
+        };
+        let currentAI = AI_SETTINGS['medium'];
+
+        let mode = 'infinite';
+        let timerDuration = 60;
+        let pointLimit = 10;
+
+        let playerScore = 0, aiScore = 0;
+        let upPressed = false, downPressed = false;
+        let running = false;
+        let timeLeft = timerDuration;
+        let timerInterval = null;
+        let winner = null;
+
+        // Convert HSL to HEX
+        function hslToHex(h, s, l) {
+          l /= 100;
+          const a = s * Math.min(l, 1 - l) / 100;
+          const f = n => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color).toString(16).padStart(2, '0');
+          };
+          return `#${f(0)}${f(8)}${f(4)}`;
+        }
+
+        const onColorInput = (hue) => {
+          color.hue = hue;
+          const hexColor = hslToHex(color.hue, color.saturation, color.luminosity);
+          document.documentElement.style.setProperty('--accent', hexColor);
+          document.documentElement.style.setProperty('--winner', hexColor);
+          document.documentElement.style.setProperty('--button-bg', hexColor);
+        };
+
+        const toggleTheme = () => {
+          isDark.value = !isDark.value;
+          document.body.classList.toggle('light', !isDark.value);
+        };
+
+        // Game functions
+        function resetBall() {
+          ballX = 400 - ballSize / 2;
+          ballY = 300 - ballSize / 2;
+          ballSpeedX = Math.random() < 0.5 ? 6 : -6;
+          ballSpeedY = (Math.random() * 4 + 3) * (Math.random() < 0.5 ? 1 : -1);
+        }
+
+        function resetGame() {
+          playerY = 300 - paddleHeight / 2;
+          aiY = 300 - paddleHeight / 2;
+          playerScore = 0;
+          aiScore = 0;
+          winner = null;
+          winnerDiv.value.textContent = '';
+          resetBall();
+          timeLeft = timerDuration;
+          scoreDiv.value.textContent = '0 : 0';
+          timerDiv.value.textContent = 'Time: ' + timeLeft;
+        }
+
+        function draw() {
+          ctx.value.clearRect(0, 0, 800, 600);
+
+          // Set theme colors
+          const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+          const paddleBallColor = getComputedStyle(document.documentElement).getPropertyValue('--paddle-ball');
+          
+          // Draw paddles
+          ctx.value.fillStyle = accent || paddleBallColor;
+          ctx.value.fillRect(20, playerY, paddleWidth, paddleHeight);
+          ctx.value.fillRect(800 - 30, aiY, paddleWidth, paddleHeight);
+
+          // Draw ball
+          ctx.value.beginPath();
+          ctx.value.arc(ballX + ballSize / 2, ballY + ballSize / 2, ballSize / 2, 0, Math.PI * 2);
+          ctx.value.fillStyle = accent || paddleBallColor;
+          ctx.value.fill();
+
+          scoreDiv.value.textContent = `${playerScore} : ${aiScore}`;
+          if (mode === 'timer') timerDiv.value.textContent = 'Time: ' + timeLeft;
+          if (winner) winnerDiv.value.textContent = winner;
+        }
+
+        function update() {
+          if (!running || winner) return;
+
+          // Player paddle movement
+          if (upPressed && playerY > 0) playerY -= paddleSpeed;
+          if (downPressed && playerY < 600 - paddleHeight) playerY += paddleSpeed;
+
+          // AI paddle movement
+          let aiCenter = aiY + paddleHeight / 2;
+          let ballCenter = ballY + ballSize / 2;
+          let targetY = ballCenter + (Math.random() * currentAI.aiError - currentAI.aiError/2);
+          if (aiCenter < targetY && aiY < 600 - paddleHeight) aiY += currentAI.aiSpeed;
+          else if (aiCenter > targetY && aiY > 0) aiY -= currentAI.aiSpeed;
+          aiY = Math.max(0, Math.min(aiY, 600 - paddleHeight));
+
+          // Ball movement
+          ballX += ballSpeedX;
+          ballY += ballSpeedY;
+
+          // Top/bottom collision
+          if (ballY <= 0 || ballY + ballSize >= 600) ballSpeedY *= -1;
+
+          // Player paddle collision
+          if (
+            ballX <= 30 &&
+            playerY < ballY + ballSize &&
+            playerY + paddleHeight > ballY
+          ) {
+            ballSpeedX *= -1;
+            ballX = 30;
+          }
+
+          // AI paddle collision
+          if (
+            ballX + ballSize >= 800 - 30 &&
+            aiY < ballY + ballSize &&
+            aiY + paddleHeight > ballY
+          ) {
+            ballSpeedX *= -1;
+            ballX = 800 - 30 - ballSize;
+          }
+
+          // Score
+          if (ballX < 0) {
+            aiScore++;
+            resetBall();
+            checkWin();
+          }
+          if (ballX > 800) {
+            playerScore++;
+            resetBall();
+            checkWin();
+          }
+        }
+
+        function checkWin() {
+          if (mode === 'point_limit') {
+            if (playerScore >= pointLimit) {
+              winner = "You Win!";
+              running = false;
+            } else if (aiScore >= pointLimit) {
+              winner = "AI Wins!";
+              running = false;
+            }
+          }
+        }
+
+        function handleTimer() {
+          if (mode !== 'timer' || !running || winner) return;
+          timeLeft--;
+          timerDiv.value.textContent = 'Time: ' + timeLeft;
+          if (timeLeft <= 0) {
+            running = false;
+            if (playerScore > aiScore) winner = "You Win!";
+            else if (aiScore > playerScore) winner = "AI Wins!";
+            else winner = "Draw!";
+            winnerDiv.value.textContent = winner;
+            clearInterval(timerInterval);
+          }
+        }
+
+        function gameLoop() {
+          update();
+          draw();
+          if (running && !winner) requestAnimationFrame(gameLoop);
+        }
+
+        const startGame = () => {
+          resetGame();
+          timerDuration = parseInt(timerInput.value.value, 10) || 1;
+          pointLimit = parseInt(pointLimitInput.value.value, 10) || 1;
+          timeLeft = timerDuration;
+          winnerDiv.value.textContent = '';
+          running = true;
+          if (mode === 'timer') {
+            timerDiv.value.style.display = '';
+            clearInterval(timerInterval);
+            timerInterval = setInterval(handleTimer, 1000);
+          } else {
+            timerDiv.value.style.display = 'none';
+            clearInterval(timerInterval);
+          }
+          requestAnimationFrame(gameLoop);
+        };
+
+        onMounted(() => {
+          canvas.value = document.getElementById('pong');
+          ctx.value = canvas.value.getContext('2d');
+          scoreDiv.value = document.getElementById('score');
+          timerInputGroup.value = document.getElementById('timerInputGroup');
+          timerInput.value = document.getElementById('timerInput');
+          pointLimitInputGroup.value = document.getElementById('pointLimitInputGroup');
+          pointLimitInput.value = document.getElementById('pointLimitInput');
+          winnerDiv.value = document.getElementById('winner');
+          timerDiv.value = document.getElementById('timer');
+
+          // Initialize color
+          const hexColor = hslToHex(color.hue, color.saturation, color.luminosity);
+          document.documentElement.style.setProperty('--accent', hexColor);
+          document.documentElement.style.setProperty('--winner', hexColor);
+          document.documentElement.style.setProperty('--button-bg', hexColor);
+
+          // Setup dropdowns
+          setupDropdown('difficultyOpen', 'difficultyItems', 'medium', function(value) {
+            currentAI = AI_SETTINGS[value];
+          });
+          setupDropdown('modeOpen', 'modeItems', 'infinite', function(value) {
+            mode = value;
+            timerInputGroup.value.style.display = mode === 'timer' ? '' : 'none';
+            pointLimitInputGroup.value.style.display = mode === 'point_limit' ? '' : 'none';
+            timerDiv.value.style.display = mode === 'timer' ? '' : 'none';
+          });
+
+          // Event listeners
+          document.addEventListener('keydown', e => {
+            if (e.key === 'w' || e.key === 'ArrowUp') upPressed = true;
+            if (e.key === 's' || e.key === 'ArrowDown') downPressed = true;
+          });
+          document.addEventListener('keyup', e => {
+            if (e.key === 'w' || e.key === 'ArrowUp') upPressed = false;
+            if (e.key === 's' || e.key === 'ArrowDown') downPressed = false;
+          });
+
+          timerInput.value.addEventListener('input', function() {
+            timerDuration = parseInt(this.value, 10) || 1;
+            timeLeft = timerDuration;
+            timerDiv.value.textContent = 'Time: ' + timeLeft;
+          });
+
+          pointLimitInput.value.addEventListener('input', function() {
+            pointLimit = parseInt(this.value, 10) || 1;
+          });
+
+          draw();
+        });
+
+        // Dropdown setup function
+        function setupDropdown(openId, itemsId, defaultValue, onChange) {
+          const open = document.getElementById(openId);
+          const items = document.getElementById(itemsId);
+          let value = defaultValue;
+          
+          document.addEventListener('mousedown', (e) => {
+            if (!open.contains(e.target) && !items.contains(e.target)) {
+              open.classList.remove('active');
+              items.classList.remove('show');
+            }
+          });
+          
+          open.addEventListener('click', () => {
+            const isActive = open.classList.contains('active');
+            document.querySelectorAll('.open').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.items').forEach(el => el.classList.remove('show'));
+            if (!isActive) {
+              open.classList.add('active');
+              items.classList.add('show');
+            }
+          });
+          
+          open.addEventListener('keydown', (e) => {
+            if (e.key === "Enter" || e.key === "ArrowDown") {
+              open.click();
+              items.querySelector('.item[data-value="' + value + '"]').focus();
+            }
+          });
+          
+          Array.from(items.querySelectorAll('.item')).forEach(el => {
+            el.addEventListener('click', () => {
+              value = el.dataset.value;
+              open.textContent = el.textContent;
+              open.classList.remove('active');
+              items.classList.remove('show');
+              if (onChange) onChange(value);
+            });
+            
+            el.addEventListener('keydown', (e) => {
+              if (e.key === "Enter") {
+                el.click();
+              } else if (e.key === "ArrowDown") {
+                el.nextElementSibling && el.nextElementSibling.focus();
+              } else if (e.key === "ArrowUp") {
+                el.previousElementSibling && el.previousElementSibling.focus();
+              } else if (e.key === "Escape") {
+                open.classList.remove('active');
+                items.classList.remove('show');
+                open.focus();
+              }
+            });
+          });
+          
+          open.textContent = defaultValue.charAt(0).toUpperCase() + defaultValue.replace('_',' ').slice(1);
+          
+          return {
+            getValue: () => value,
+            setValue: v => {
+              value = v;
+              Array.from(items.querySelectorAll('.item')).forEach(el => {
+                if (el.dataset.value === v) open.textContent = el.textContent;
+              });
+            }
+          };
+        }
+
+        return {
+          color,
+          isDark,
+          onColorInput,
+          toggleTheme,
+          startGame
+        };
+      },
+    }).mount('#app');
+  </script>
+</body>
+</html>
